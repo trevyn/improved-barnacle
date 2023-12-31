@@ -15,7 +15,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "improved-barnacle",
         native_options,
-        Box::new(|cc| Box::new(improved_barnacle::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(improved_barnacle::HttpApp::new(cc))),
     )
 }
 
@@ -32,7 +32,7 @@ fn main() {
             .start(
                 "the_canvas_id", // hardcode it
                 web_options,
-                Box::new(|cc| Box::new(improved_barnacle::TemplateApp::new(cc))),
+                Box::new(|cc| Box::new(improved_barnacle::HttpApp::new(cc))),
             )
             .await
             .expect("failed to start eframe");

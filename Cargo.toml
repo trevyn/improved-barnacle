@@ -11,6 +11,16 @@ eframe = {version = "0.24.1", default-features = false, features = [
   "glow", # Use the glow rendering backend. Alternative: "wgpu".
   "persistence", # Enable restoring app state when restarting the app.
 ]}
+egui_extras = {version = "0.24.1", features = [
+  "image",
+]}
+ehttp = "0.3.1"
+image = {version = "0.24", default-features = false, features = [
+  "jpeg",
+  "png",
+]}
+poll-promise = {version = "0.3", default-features = false}
+
 egui = "0.24.1"
 log = "0.4"
 

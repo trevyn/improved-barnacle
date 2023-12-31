@@ -1,110 +1,262 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
-    label: String,
+use egui::Image;
+use poll_promise::Promise;
 
-    #[serde(skip)] // This how you opt-out of serialization of a field
-    value: f32,
+struct Resource {
+    /// HTTP response
+    response: ehttp::Response,
+
+    text: Option<String>,
+
+    /// If set, the response was an image.
+    image: Option<Image<'static>>,
+
+    /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
+    colored_text: Option<ColoredText>,
 }
 
-impl Default for TemplateApp {
-    fn default() -> Self {
-        Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+impl Resource {
+    fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
+        let content_type = response.content_type().unwrap_or_default();
+        if content_type.starts_with("image/") {
+            ctx.include_bytes(response.url.clone(), response.bytes.clone());
+            let image = Image::from_uri(response.url.clone());
+
+            Self {
+                response,
+                text: None,
+                colored_text: None,
+                image: Some(image),
+            }
+        } else {
+            let text = response.text();
+            let colored_text = text.and_then(|text| syntax_highlighting(ctx, &response, text));
+            let text = text.map(|text| text.to_owned());
+
+            Self {
+                response,
+                text,
+                colored_text,
+                image: None,
+            }
         }
     }
 }
 
-impl TemplateApp {
-    /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct HttpApp {
+    url: String,
 
+    #[cfg_attr(feature = "serde", serde(skip))]
+    promise: Option<Promise<ehttp::Result<Resource>>>,
+}
+
+impl Default for HttpApp {
+    fn default() -> Self {
+        Self {
+            url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
+            promise: Default::default(),
+        }
+    }
+}
+
+impl HttpApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         cc.egui_ctx
             .style_mut(|s| s.visuals.override_text_color = Some(egui::Color32::WHITE));
 
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }
+        // if let Some(storage) = cc.storage {
+        //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        // }
 
-        Default::default()
+        Self::default()
     }
 }
 
-impl eframe::App for TemplateApp {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
-            egui::menu::bar(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
-            });
-        });
-
+impl eframe::App for HttpApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
+            let prev_url = self.url.clone();
+            let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
+            if trigger_fetch {
+                let ctx = ctx.clone();
+                let (sender, promise) = Promise::new();
+                let request = ehttp::Request::get(&self.url);
+                ehttp::fetch(request, move |response| {
+                    ctx.forget_image(&prev_url);
+                    ctx.request_repaint(); // wake up UI thread
+                    let resource = response.map(|response| Resource::from_response(&ctx, response));
+                    sender.send(resource);
+                });
+                self.promise = Some(promise);
             }
 
             ui.separator();
 
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
+            if let Some(promise) = &self.promise {
+                if let Some(result) = promise.ready() {
+                    match result {
+                        Ok(resource) => {
+                            ui_resource(ui, resource);
+                        }
+                        Err(error) => {
+                            // This should only happen if the fetch API isn't available or something similar.
+                            ui.colored_label(
+                                ui.visuals().error_fg_color,
+                                if error.is_empty() { "Error" } else { error },
+                            );
+                        }
+                    }
+                } else {
+                    ui.spinner();
+                }
+            }
         });
     }
 }
 
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
+fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> bool {
+    let mut trigger_fetch = false;
+
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
+        ui.label("URL:");
+        trigger_fetch |= ui
+            .add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY))
+            .lost_focus();
     });
+
+    ui.horizontal(|ui| {
+        if ui.button("Random image").clicked() {
+            let seed = ui.input(|i| i.time);
+            let side = 640;
+            *url = format!("https://picsum.photos/seed/{seed}/{side}");
+            trigger_fetch = true;
+        }
+    });
+
+    trigger_fetch
+}
+
+fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
+    let Resource {
+        response,
+        text,
+        image,
+        colored_text,
+    } = resource;
+
+    ui.monospace(format!("url:          {}", response.url));
+    ui.monospace(format!(
+        "status:       {} ({})",
+        response.status, response.status_text
+    ));
+    ui.monospace(format!(
+        "content-type: {}",
+        response.content_type().unwrap_or_default()
+    ));
+    ui.monospace(format!(
+        "size:         {:.1} kB",
+        response.bytes.len() as f32 / 1000.0
+    ));
+
+    ui.separator();
+
+    egui::ScrollArea::vertical()
+        .auto_shrink(false)
+        .show(ui, |ui| {
+            egui::CollapsingHeader::new("Response headers")
+                .default_open(false)
+                .show(ui, |ui| {
+                    egui::Grid::new("response_headers")
+                        .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
+                        .show(ui, |ui| {
+                            for header in &response.headers {
+                                ui.label(header.0);
+                                ui.label(header.1);
+                                ui.end_row();
+                            }
+                        })
+                });
+
+            ui.separator();
+
+            if let Some(text) = &text {
+                let tooltip = "Click to copy the response body";
+                if ui.button("📋").on_hover_text(tooltip).clicked() {
+                    ui.ctx().copy_text(text.clone());
+                }
+                ui.separator();
+            }
+
+            if let Some(image) = image {
+                ui.add(image.clone());
+            } else if let Some(colored_text) = colored_text {
+                colored_text.ui(ui);
+            } else if let Some(text) = &text {
+                selectable_text(ui, text);
+            } else {
+                ui.monospace("[binary]");
+            }
+        });
+}
+
+fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
+    ui.add(
+        egui::TextEdit::multiline(&mut text)
+            .desired_width(f32::INFINITY)
+            .font(egui::TextStyle::Monospace),
+    );
+}
+
+// ----------------------------------------------------------------------------
+// Syntax highlighting:
+
+fn syntax_highlighting(
+    ctx: &egui::Context,
+    response: &ehttp::Response,
+    text: &str,
+) -> Option<ColoredText> {
+    let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
+    let extension = extension_and_rest.first()?;
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    Some(ColoredText(egui_extras::syntax_highlighting::highlight(
+        ctx, &theme, text, extension,
+    )))
+}
+
+struct ColoredText(egui::text::LayoutJob);
+
+impl ColoredText {
+    pub fn ui(&self, ui: &mut egui::Ui) {
+        if true {
+            // Selectable text:
+            let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
+                let mut layout_job = self.0.clone();
+                layout_job.wrap.max_width = wrap_width;
+                ui.fonts(|f| f.layout_job(layout_job))
+            };
+
+            let mut text = self.0.text.as_str();
+            ui.add(
+                egui::TextEdit::multiline(&mut text)
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(f32::INFINITY)
+                    .layouter(&mut layouter),
+            );
+        } else {
+            let mut job = self.0.clone();
+            job.wrap.max_width = ui.available_width();
+            let galley = ui.fonts(|f| f.layout_job(job));
+            let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
+            painter.add(egui::Shape::galley(
+                response.rect.min,
+                galley,
+                // ui.visuals().text_color(),
+            ));
+        }
+    }
 }
