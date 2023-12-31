@@ -25,6 +25,9 @@ impl TemplateApp {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
+        cc.egui_ctx
+            .style_mut(|s| s.visuals.override_text_color = Some(egui::Color32::WHITE));
+
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
@@ -60,8 +63,6 @@ impl eframe::App for TemplateApp {
                     });
                     ui.add_space(16.0);
                 }
-
-                egui::widgets::global_dark_light_mode_buttons(ui);
             });
         });
 
