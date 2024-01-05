@@ -45,6 +45,7 @@ impl Resource {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HttpApp {
     url: String,
+    line_selected: usize,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     promise: Option<Promise<ehttp::Result<Resource>>>,
@@ -54,6 +55,7 @@ impl Default for HttpApp {
     fn default() -> Self {
         Self {
             url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
+            line_selected: Default::default(),
             promise: Default::default(),
         }
     }
@@ -78,6 +80,21 @@ impl HttpApp {
 
 impl eframe::App for HttpApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::SidePanel::left("left_panel").show(ctx, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    for i in 0..10 {
+                        if ui
+                            .selectable_label(i == self.line_selected, format!("Line {}", i))
+                            .clicked()
+                        {
+                            self.line_selected = i;
+                        }
+                    }
+                });
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
@@ -94,6 +111,8 @@ impl eframe::App for HttpApp {
                 });
                 self.promise = Some(promise);
             }
+
+            ui.label(format!("Selected line: {}", self.line_selected));
 
             ui.separator();
 
@@ -119,7 +138,7 @@ impl eframe::App for HttpApp {
     }
 }
 
-fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut egui::Ui, _frame: &mut eframe::Frame, url: &mut String) -> bool {
     let mut trigger_fetch = false;
 
     ui.horizontal(|ui| {
