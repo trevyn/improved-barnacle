@@ -1,5 +1,13 @@
 use egui::Image;
 use poll_promise::Promise;
+use turbosql::Turbosql;
+
+#[derive(Turbosql, Default)]
+struct Card {
+    rowid: Option<i64>,
+    question: Option<String>,
+    answer: Option<String>,
+}
 
 struct Resource {
     /// HTTP response
