@@ -64,7 +64,7 @@ impl Resource {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HttpApp {
 	url: String,
-	line_selected: usize,
+	line_selected: i64,
 
 	#[cfg_attr(feature = "serde", serde(skip))]
 	promise: Option<Promise<ehttp::Result<Resource>>>,
@@ -101,16 +101,20 @@ impl eframe::App for HttpApp {
 		ctx.input(|i| {
 			if i.key_pressed(egui::Key::ArrowDown) {
 				self.line_selected += 1;
-			}
-			if i.key_pressed(egui::Key::ArrowUp) {
+			} else if i.key_pressed(egui::Key::ArrowUp) {
 				self.line_selected -= 1;
+			} else if i.key_pressed(egui::Key::Enter) {
+				Card::default().insert().unwrap();
 			}
 		});
 
+		let cards = select!(Vec<Card>).unwrap();
+
 		egui::SidePanel::left("left_panel").show(ctx, |ui| {
 			egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-				for i in 0..10 {
-					if ui.selectable_label(i == self.line_selected, format!("Line {}", i)).clicked() {
+				for card in cards {
+					let i = card.rowid.unwrap();
+					if ui.selectable_label(i == self.line_selected, format!("Card {}", i)).clicked() {
 						self.line_selected = i;
 					}
 				}
