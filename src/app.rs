@@ -61,23 +61,13 @@ impl Resource {
 	}
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct HttpApp {
 	url: String,
 	line_selected: i64,
 
 	#[serde(skip)]
 	promise: Option<Promise<ehttp::Result<Resource>>>,
-}
-
-impl Default for HttpApp {
-	fn default() -> Self {
-		Self {
-			url: "https://raw.githubusercontent.com/emilk/egui/master/README.md".to_owned(),
-			line_selected: Default::default(),
-			promise: Default::default(),
-		}
-	}
 }
 
 impl HttpApp {
