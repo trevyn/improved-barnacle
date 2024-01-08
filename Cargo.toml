@@ -44,6 +44,7 @@ opt-level = 2 # fast and small wasm
 opt-level = 2
 
 [patch.crates-io]
+turbosql = { git = "https://github.com/trevyn/turbosql", branch = "not_null" }
 
 # If you want to use the bleeding edge version of egui and eframe:
 # egui = { git = "https://github.com/emilk/egui", branch = "master" }

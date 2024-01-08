@@ -3,12 +3,12 @@
 use egui::Image;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
-use turbosql::{execute, select, Turbosql};
+use turbosql::{execute, select, update, Turbosql};
 
 #[derive(Turbosql, Default)]
 struct Card {
 	rowid: Option<i64>,
-	deleted: Option<bool>,
+	deleted: bool,
 	title: Option<String>,
 	question: Option<String>,
 	answer: Option<String>,
@@ -101,7 +101,7 @@ impl eframe::App for HttpApp {
 			} else if i.key_pressed(egui::Key::Enter) {
 				Card::default().insert().unwrap();
 			} else if i.key_pressed(egui::Key::Backspace) {
-				let _ = execute!("UPDATE card SET deleted = 1 WHERE rowid = " self.line_selected);
+				let _ = update!("card SET deleted = 1 WHERE rowid = " self.line_selected);
 				self.line_selected =
 					select!(i64 "MIN(rowid) FROM card WHERE (deleted IS NULL OR deleted != 1) AND rowid > " self.line_selected)
             .unwrap_or(0);
