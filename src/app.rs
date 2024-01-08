@@ -131,7 +131,7 @@ impl eframe::App for HttpApp {
 			egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
 				for card in cards {
 					let i = card.rowid.unwrap();
-					if ui.selectable_label(i == self.line_selected, format!("Card {}", i)).clicked() {
+					if ui.selectable_label(i == self.line_selected, format!("{}: {}", i, card.title)).clicked() {
 						self.line_selected = i;
 					}
 				}
@@ -162,14 +162,23 @@ impl eframe::App for HttpApp {
 			ui.label(format!("question: {}", card.question));
 			ui.label(format!("answer: {}", card.answer));
 
+			let mut title_text = card.title.clone();
 			ui.label("title:");
-			ui.text_edit_multiline(&mut self.title_text);
+			if ui.text_edit_multiline(&mut title_text).changed() {
+				let _ = update!("card SET title = " title_text " WHERE rowid = " self.line_selected);
+			}
 
+			let mut question_text = card.question.clone();
 			ui.label("question:");
-			ui.text_edit_multiline(&mut self.question_text);
+			if ui.text_edit_multiline(&mut question_text).changed() {
+				let _ = update!("card SET question = " question_text " WHERE rowid = " self.line_selected);
+			}
 
+			let mut answer_text = card.answer.clone();
 			ui.label("answer:");
-			ui.text_edit_multiline(&mut self.answer_text);
+			if ui.text_edit_multiline(&mut answer_text).changed() {
+				let _ = update!("card SET answer = " answer_text " WHERE rowid = " self.line_selected);
+			}
 
 			ui.separator();
 
