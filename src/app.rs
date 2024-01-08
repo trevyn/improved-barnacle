@@ -3,11 +3,12 @@
 use egui::Image;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
-use turbosql::{select, Turbosql};
+use turbosql::{execute, select, Turbosql};
 
 #[derive(Turbosql, Default)]
 struct Card {
 	rowid: Option<i64>,
+	deleted: Option<bool>,
 	title: Option<String>,
 	question: Option<String>,
 	answer: Option<String>,
@@ -90,15 +91,24 @@ impl eframe::App for HttpApp {
 	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 		ctx.input(|i| {
 			if i.key_pressed(egui::Key::ArrowDown) {
-				self.line_selected += 1;
+			self.line_selected =
+				select!(i64 "MIN(rowid) FROM card WHERE (deleted IS NULL OR deleted != 1) AND rowid > " self.line_selected)
+            .unwrap_or(self.line_selected);
 			} else if i.key_pressed(egui::Key::ArrowUp) {
-				self.line_selected -= 1;
+			self.line_selected =
+				select!(i64 "MAX(rowid) FROM card WHERE (deleted IS NULL OR deleted != 1) AND rowid < " self.line_selected)
+            .unwrap_or(self.line_selected);
 			} else if i.key_pressed(egui::Key::Enter) {
 				Card::default().insert().unwrap();
+			} else if i.key_pressed(egui::Key::Backspace) {
+				let _ = execute!("UPDATE card SET deleted = 1 WHERE rowid = " self.line_selected);
+				self.line_selected =
+					select!(i64 "MIN(rowid) FROM card WHERE (deleted IS NULL OR deleted != 1) AND rowid > " self.line_selected)
+            .unwrap_or(0);
 			}
 		});
 
-		let cards = select!(Vec<Card>).unwrap();
+		let cards = select!(Vec<Card> "WHERE deleted IS NULL OR deleted != 1").unwrap();
 
 		egui::SidePanel::left("left_panel").show(ctx, |ui| {
 			egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
