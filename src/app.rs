@@ -10,26 +10,38 @@ struct Card {
 	rowid: Option<i64>,
 	#[turbosql(sql_default = false)]
 	deleted: bool,
-	title: Option<String>,
-	question: Option<String>,
-	answer: Option<String>,
-	last_question_viewed_ms: Option<i64>,
-	last_answer_viewed_ms: Option<i64>,
+	#[turbosql(sql_default = "(no title)")]
+	title: String,
+	#[turbosql(sql_default = "question goes here")]
+	question: String,
+	#[turbosql(sql_default = "answer goes here")]
+	answer: String,
+	#[turbosql(sql_default = 0)]
+	last_question_viewed_ms: i64,
+	#[turbosql(sql_default = 0)]
+	last_answer_viewed_ms: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 enum Action {
+	#[default]
+	NoAction,
 	ViewedQuestion,
 	ViewedAnswer,
-	Responded { correct: bool },
+	Responded {
+		correct: bool,
+	},
 }
 
 #[derive(Turbosql, Default)]
 struct CardLog {
 	rowid: Option<i64>,
-	card_id: Option<i64>,
-	time_ms: Option<i64>,
-	action: Option<Action>,
+	#[turbosql(sql_default = 0)]
+	card_id: i64,
+	#[turbosql(sql_default = 0)]
+	time_ms: i64,
+	#[turbosql(sql_default = "")]
+	action: Action,
 }
 
 struct Resource {
