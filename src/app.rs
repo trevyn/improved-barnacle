@@ -22,6 +22,7 @@ struct Card {
 	last_answer_viewed_ms: i64,
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Serialize, Deserialize, Default)]
 enum Action {
 	#[default]
