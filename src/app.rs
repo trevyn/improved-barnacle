@@ -1,12 +1,33 @@
+#![allow(unused_imports)]
+
 use egui::Image;
 use poll_promise::Promise;
-use turbosql::Turbosql;
+use serde::{Deserialize, Serialize};
+use turbosql::{select, Turbosql};
 
 #[derive(Turbosql, Default)]
 struct Card {
     rowid: Option<i64>,
+    title: Option<String>,
     question: Option<String>,
     answer: Option<String>,
+    last_question_viewed_ms: Option<i64>,
+    last_answer_viewed_ms: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize)]
+enum Action {
+    ViewedQuestion,
+    ViewedAnswer,
+    Responded { correct: bool },
+}
+
+#[derive(Turbosql, Default)]
+struct CardLog {
+    rowid: Option<i64>,
+    card_id: Option<i64>,
+    time_ms: Option<i64>,
+    action: Option<Action>,
 }
 
 struct Resource {
