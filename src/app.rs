@@ -109,6 +109,15 @@ impl HttpApp {
 
 impl eframe::App for HttpApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        ctx.input(|i| {
+            if i.key_pressed(egui::Key::ArrowDown) {
+                self.line_selected += 1;
+            }
+            if i.key_pressed(egui::Key::ArrowUp) {
+                self.line_selected -= 1;
+            }
+        });
+
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
