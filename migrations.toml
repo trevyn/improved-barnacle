@@ -5,7 +5,7 @@
 
 migrations_append_only = [
     "CREATE TABLE card (rowid INTEGER PRIMARY KEY) STRICT",
-    "ALTER TABLE card ADD COLUMN deleted INTEGER NOT NULL",
+    "ALTER TABLE card ADD COLUMN deleted INTEGER NOT NULL DEFAULT false",
     "ALTER TABLE card ADD COLUMN title TEXT",
     "ALTER TABLE card ADD COLUMN question TEXT",
     "ALTER TABLE card ADD COLUMN answer TEXT",
@@ -23,7 +23,7 @@ output_generated_schema_for_your_information_do_not_edit = """
   ) STRICT
   CREATE TABLE card (
     rowid INTEGER PRIMARY KEY,
-    deleted INTEGER NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT false,
     title TEXT,
     question TEXT,
     answer TEXT,
