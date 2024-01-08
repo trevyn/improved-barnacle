@@ -61,12 +61,12 @@ impl Resource {
 	}
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Deserialize, Serialize)]
 pub struct HttpApp {
 	url: String,
 	line_selected: i64,
 
-	#[cfg_attr(feature = "serde", serde(skip))]
+	#[serde(skip)]
 	promise: Option<Promise<ehttp::Result<Resource>>>,
 }
 
