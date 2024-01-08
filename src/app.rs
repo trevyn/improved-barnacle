@@ -80,6 +80,9 @@ impl Resource {
 pub struct HttpApp {
 	url: String,
 	line_selected: i64,
+	title_text: String,
+	question_text: String,
+	answer_text: String,
 
 	#[serde(skip)]
 	promise: Option<Promise<ehttp::Result<Resource>>>,
@@ -135,6 +138,8 @@ impl eframe::App for HttpApp {
 			});
 		});
 
+		let card = select!(Card "WHERE rowid = " self.line_selected).unwrap_or_default();
+
 		egui::CentralPanel::default().show(ctx, |ui| {
 			let prev_url = self.url.clone();
 			let trigger_fetch = ui_url(ui, frame, &mut self.url);
@@ -153,6 +158,18 @@ impl eframe::App for HttpApp {
 			}
 
 			ui.label(format!("Selected line: {}", self.line_selected));
+			ui.label(format!("title: {}", card.title));
+			ui.label(format!("question: {}", card.question));
+			ui.label(format!("answer: {}", card.answer));
+
+			ui.label("title:");
+			ui.text_edit_multiline(&mut self.title_text);
+
+			ui.label("question:");
+			ui.text_edit_multiline(&mut self.question_text);
+
+			ui.label("answer:");
+			ui.text_edit_multiline(&mut self.answer_text);
 
 			ui.separator();
 
