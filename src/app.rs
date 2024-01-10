@@ -8,17 +8,11 @@ use turbosql::{execute, select, update, Turbosql};
 #[derive(Turbosql, Default)]
 struct Card {
 	rowid: Option<i64>,
-	#[turbosql(sql_default = false)]
 	deleted: bool,
-	#[turbosql(sql_default = "(no title)")]
 	title: String,
-	#[turbosql(sql_default = "question goes here")]
 	question: String,
-	#[turbosql(sql_default = "answer goes here")]
 	answer: String,
-	#[turbosql(sql_default = 0)]
 	last_question_viewed_ms: i64,
-	#[turbosql(sql_default = 0)]
 	last_answer_viewed_ms: i64,
 }
 
@@ -37,11 +31,8 @@ enum Action {
 #[derive(Turbosql, Default)]
 struct CardLog {
 	rowid: Option<i64>,
-	#[turbosql(sql_default = 0)]
 	card_id: i64,
-	#[turbosql(sql_default = 0)]
 	time_ms: i64,
-	#[turbosql(sql_default = "")]
 	action: Action,
 }
 

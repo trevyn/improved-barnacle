@@ -6,9 +6,9 @@
 migrations_append_only = [
     "CREATE TABLE card (rowid INTEGER PRIMARY KEY) STRICT",
     "ALTER TABLE card ADD COLUMN deleted INTEGER NOT NULL DEFAULT false",
-    "ALTER TABLE card ADD COLUMN title TEXT NOT NULL DEFAULT \"(no title)\"",
-    "ALTER TABLE card ADD COLUMN question TEXT NOT NULL DEFAULT \"question goes here\"",
-    "ALTER TABLE card ADD COLUMN answer TEXT NOT NULL DEFAULT \"answer goes here\"",
+    "ALTER TABLE card ADD COLUMN title TEXT NOT NULL DEFAULT \"\"",
+    "ALTER TABLE card ADD COLUMN question TEXT NOT NULL DEFAULT \"\"",
+    "ALTER TABLE card ADD COLUMN answer TEXT NOT NULL DEFAULT \"\"",
     "ALTER TABLE card ADD COLUMN last_question_viewed_ms INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE card ADD COLUMN last_answer_viewed_ms INTEGER NOT NULL DEFAULT 0",
     "CREATE TABLE cardlog (rowid INTEGER PRIMARY KEY) STRICT",
@@ -24,11 +24,9 @@ output_generated_schema_for_your_information_do_not_edit = """
   CREATE TABLE card (
     rowid INTEGER PRIMARY KEY,
     deleted INTEGER NOT NULL DEFAULT false,
-    title TEXT NOT NULL DEFAULT \"(
-    no title
-  )\",
-    question TEXT NOT NULL DEFAULT \"question goes here\",
-    answer TEXT NOT NULL DEFAULT \"answer goes here\",
+    title TEXT NOT NULL DEFAULT \"\",
+    question TEXT NOT NULL DEFAULT \"\",
+    answer TEXT NOT NULL DEFAULT \"\",
     last_question_viewed_ms INTEGER NOT NULL DEFAULT 0,
     last_answer_viewed_ms INTEGER NOT NULL DEFAULT 0
   ) STRICT
