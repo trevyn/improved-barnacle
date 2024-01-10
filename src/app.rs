@@ -96,12 +96,12 @@ impl HttpApp {
 }
 
 trait MyThings {
-	fn text_edit_multiline_big(&mut self, text: &mut dyn TextBuffer) -> Response;
+	fn editable(&mut self, text: &mut dyn TextBuffer) -> bool;
 }
 
 impl MyThings for Ui {
-	fn text_edit_multiline_big(&mut self, text: &mut dyn TextBuffer) -> Response {
-		self.add(TextEdit::multiline(text).font(FontId::new(30.0, FontFamily::Proportional)))
+	fn editable(&mut self, text: &mut dyn TextBuffer) -> bool {
+		self.add(TextEdit::multiline(text).font(FontId::new(30.0, FontFamily::Proportional))).changed()
 	}
 }
 
@@ -161,11 +161,11 @@ impl eframe::App for HttpApp {
 			if let Ok(mut card) = select!(Card "WHERE rowid = " self.line_selected) {
 				ui.label(format!("Card number: {}", card.rowid.unwrap()));
 				ui.label("title:");
-				ui.text_edit_multiline_big(&mut card.title).changed().then(|| card.update());
+				ui.editable(&mut card.title).then(|| card.update());
 				ui.label("question:");
-				ui.text_edit_multiline_big(&mut card.question).changed().then(|| card.update());
+				ui.editable(&mut card.question).then(|| card.update());
 				ui.label("answer:");
-				ui.text_edit_multiline_big(&mut card.answer).changed().then(|| card.update());
+				ui.editable(&mut card.answer).then(|| card.update());
 				ui.separator();
 			}
 
