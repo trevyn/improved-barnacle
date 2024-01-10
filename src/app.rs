@@ -131,8 +131,6 @@ impl eframe::App for HttpApp {
 			});
 		});
 
-		let card = select!(Card "WHERE rowid = " self.line_selected).unwrap_or_default();
-
 		CentralPanel::default().show(ctx, |ui| {
 			let prev_url = self.url.clone();
 			let trigger_fetch = ui_url(ui, frame, &mut self.url);
@@ -150,30 +148,16 @@ impl eframe::App for HttpApp {
 				self.promise = Some(promise);
 			}
 
-			ui.label(format!("Selected line: {}", self.line_selected));
-			ui.label(format!("title: {}", card.title));
-			ui.label(format!("question: {}", card.question));
-			ui.label(format!("answer: {}", card.answer));
-
-			let mut title_text = card.title.clone();
-			ui.label("title:");
-			if ui.text_edit_multiline(&mut title_text).changed() {
-				let _ = update!("card SET title = " title_text " WHERE rowid = " self.line_selected);
+			if let Ok(mut card) = select!(Card "WHERE rowid = " self.line_selected) {
+				ui.label(format!("Card number: {}", card.rowid.unwrap()));
+				ui.label("title:");
+				ui.text_edit_multiline(&mut card.title).changed().then(|| card.update());
+				ui.label("question:");
+				ui.text_edit_multiline(&mut card.question).changed().then(|| card.update());
+				ui.label("answer:");
+				ui.text_edit_multiline(&mut card.answer).changed().then(|| card.update());
+				ui.separator();
 			}
-
-			let mut question_text = card.question.clone();
-			ui.label("question:");
-			if ui.text_edit_multiline(&mut question_text).changed() {
-				let _ = update!("card SET question = " question_text " WHERE rowid = " self.line_selected);
-			}
-
-			let mut answer_text = card.answer.clone();
-			ui.label("answer:");
-			if ui.text_edit_multiline(&mut answer_text).changed() {
-				let _ = update!("card SET answer = " answer_text " WHERE rowid = " self.line_selected);
-			}
-
-			ui.separator();
 
 			if let Some(promise) = &self.promise {
 				if let Some(result) = promise.ready() {
