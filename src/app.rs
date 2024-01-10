@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use egui::Image;
+use egui::*;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
 use turbosql::{execute, select, update, Turbosql};
@@ -50,7 +50,7 @@ struct Resource {
 }
 
 impl Resource {
-	fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
+	fn from_response(ctx: &Context, response: ehttp::Response) -> Self {
 		let content_type = response.content_type().unwrap_or_default();
 		if content_type.starts_with("image/") {
 			ctx.include_bytes(response.url.clone(), response.bytes.clone());
@@ -81,7 +81,7 @@ pub struct HttpApp {
 
 impl HttpApp {
 	pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-		cc.egui_ctx.style_mut(|s| s.visuals.override_text_color = Some(egui::Color32::WHITE));
+		cc.egui_ctx.style_mut(|s| s.visuals.override_text_color = Some(Color32::WHITE));
 
 		egui_extras::install_image_loaders(&cc.egui_ctx);
 
@@ -96,19 +96,19 @@ impl HttpApp {
 }
 
 impl eframe::App for HttpApp {
-	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+	fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
 		ctx.input(|i| {
-			if i.key_pressed(egui::Key::ArrowDown) {
+			if i.key_pressed(Key::ArrowDown) {
 				self.line_selected =
 					select!(i64 "MIN(rowid) FROM card WHERE NOT deleted AND rowid > " self.line_selected)
 						.unwrap_or(self.line_selected);
-			} else if i.key_pressed(egui::Key::ArrowUp) {
+			} else if i.key_pressed(Key::ArrowUp) {
 				self.line_selected =
 					select!(i64 "MAX(rowid) FROM card WHERE NOT deleted AND rowid < " self.line_selected)
 						.unwrap_or(self.line_selected);
-			} else if i.key_pressed(egui::Key::Enter) {
+			} else if i.key_pressed(Key::Enter) {
 				Card::default().insert().unwrap();
-			} else if i.key_pressed(egui::Key::Backspace) {
+			} else if i.key_pressed(Key::Backspace) {
 				let _ = update!("card SET deleted = 1 WHERE rowid = " self.line_selected);
 				self.line_selected =
 					select!(i64 "MIN(rowid) FROM card WHERE NOT deleted AND rowid > " self.line_selected)
@@ -118,11 +118,13 @@ impl eframe::App for HttpApp {
 
 		let cards = select!(Vec<Card> "WHERE NOT deleted").unwrap();
 
-		egui::SidePanel::left("left_panel").show(ctx, |ui| {
-			egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+		SidePanel::left("left_panel").show(ctx, |ui| {
+			ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+				let size = [ui.available_width(), ui.spacing().interact_size.y.max(20.0)];
 				for card in cards {
 					let i = card.rowid.unwrap();
-					if ui.selectable_label(i == self.line_selected, format!("{}: {}", i, card.title)).clicked() {
+					let label = SelectableLabel::new(i == self.line_selected, format!("{}: {}", i, card.title));
+					if ui.add_sized(size, label).clicked() {
 						self.line_selected = i;
 					}
 				}
@@ -131,7 +133,7 @@ impl eframe::App for HttpApp {
 
 		let card = select!(Card "WHERE rowid = " self.line_selected).unwrap_or_default();
 
-		egui::CentralPanel::default().show(ctx, |ui| {
+		CentralPanel::default().show(ctx, |ui| {
 			let prev_url = self.url.clone();
 			let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
@@ -193,13 +195,12 @@ impl eframe::App for HttpApp {
 	}
 }
 
-fn ui_url(ui: &mut egui::Ui, _frame: &mut eframe::Frame, url: &mut String) -> bool {
+fn ui_url(ui: &mut Ui, _frame: &mut eframe::Frame, url: &mut String) -> bool {
 	let mut trigger_fetch = false;
 
 	ui.horizontal(|ui| {
 		ui.label("URL:");
-		trigger_fetch |=
-			ui.add(egui::TextEdit::singleline(url).desired_width(f32::INFINITY)).lost_focus();
+		trigger_fetch |= ui.add(TextEdit::singleline(url).desired_width(f32::INFINITY)).lost_focus();
 	});
 
 	ui.horizontal(|ui| {
@@ -214,7 +215,7 @@ fn ui_url(ui: &mut egui::Ui, _frame: &mut eframe::Frame, url: &mut String) -> bo
 	trigger_fetch
 }
 
-fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
+fn ui_resource(ui: &mut Ui, resource: &Resource) {
 	let Resource { response, text, image, colored_text } = resource;
 
 	ui.monospace(format!("url:          {}", response.url));
@@ -224,17 +225,18 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
 
 	ui.separator();
 
-	egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-		egui::CollapsingHeader::new("Response headers").default_open(false).show(ui, |ui| {
-			egui::Grid::new("response_headers")
-				.spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
-				.show(ui, |ui| {
+	ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+		CollapsingHeader::new("Response headers").default_open(false).show(ui, |ui| {
+			Grid::new("response_headers").spacing(vec2(ui.spacing().item_spacing.x * 2.0, 0.0)).show(
+				ui,
+				|ui| {
 					for header in &response.headers {
 						ui.label(header.0);
 						ui.label(header.1);
 						ui.end_row();
 					}
-				})
+				},
+			)
 		});
 
 		ui.separator();
@@ -259,19 +261,15 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
 	});
 }
 
-fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
-	ui.add(
-		egui::TextEdit::multiline(&mut text)
-			.desired_width(f32::INFINITY)
-			.font(egui::TextStyle::Monospace),
-	);
+fn selectable_text(ui: &mut Ui, mut text: &str) {
+	ui.add(TextEdit::multiline(&mut text).desired_width(f32::INFINITY).font(TextStyle::Monospace));
 }
 
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
 fn syntax_highlighting(
-	ctx: &egui::Context,
+	ctx: &Context,
 	response: &ehttp::Response,
 	text: &str,
 ) -> Option<ColoredText> {
@@ -281,13 +279,13 @@ fn syntax_highlighting(
 	Some(ColoredText(egui_extras::syntax_highlighting::highlight(ctx, &theme, text, extension)))
 }
 
-struct ColoredText(egui::text::LayoutJob);
+struct ColoredText(text::LayoutJob);
 
 impl ColoredText {
-	pub fn ui(&self, ui: &mut egui::Ui) {
+	pub fn ui(&self, ui: &mut Ui) {
 		if true {
 			// Selectable text:
-			let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
+			let mut layouter = |ui: &Ui, _string: &str, wrap_width: f32| {
 				let mut layout_job = self.0.clone();
 				layout_job.wrap.max_width = wrap_width;
 				ui.fonts(|f| f.layout_job(layout_job))
@@ -295,8 +293,8 @@ impl ColoredText {
 
 			let mut text = self.0.text.as_str();
 			ui.add(
-				egui::TextEdit::multiline(&mut text)
-					.font(egui::TextStyle::Monospace)
+				TextEdit::multiline(&mut text)
+					.font(TextStyle::Monospace)
 					.desired_width(f32::INFINITY)
 					.layouter(&mut layouter),
 			);
@@ -304,8 +302,8 @@ impl ColoredText {
 			let mut job = self.0.clone();
 			job.wrap.max_width = ui.available_width();
 			let galley = ui.fonts(|f| f.layout_job(job));
-			let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-			painter.add(egui::Shape::galley(response.rect.min, galley, ui.visuals().text_color()));
+			let (response, painter) = ui.allocate_painter(galley.size(), Sense::hover());
+			painter.add(Shape::galley(response.rect.min, galley, ui.visuals().text_color()));
 		}
 	}
 }
