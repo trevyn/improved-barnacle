@@ -6,6 +6,27 @@ use serde::{Deserialize, Serialize};
 use turbosql::{execute, select, update, Turbosql};
 
 #[derive(Turbosql, Default)]
+struct Setting {
+	rowid: Option<i64>,
+	key: String,
+	value: String,
+}
+
+impl Setting {
+	fn get(key: &str) -> Self {
+		select!(Setting "WHERE key = " key)
+			.unwrap_or(Setting { key: key.to_string(), ..Default::default() })
+	}
+	fn save(&self) {
+		if self.rowid.is_some() {
+			self.update().unwrap();
+		} else {
+			self.insert().unwrap();
+		}
+	}
+}
+
+#[derive(Turbosql, Default)]
 struct Card {
 	rowid: Option<i64>,
 	deleted: bool,
@@ -139,6 +160,16 @@ impl eframe::App for HttpApp {
 					}
 				}
 			});
+		});
+
+		SidePanel::right("right_panel").show(ctx, |ui| {
+			let mut setting = Setting::get("openai_key");
+			ui.label("openai key:");
+			ui
+				.add(TextEdit::singleline(&mut setting.value).desired_width(f32::INFINITY))
+				.changed()
+				.then(|| setting.save());
+			ui.allocate_space(ui.available_size());
 		});
 
 		CentralPanel::default().show(ctx, |ui| {
